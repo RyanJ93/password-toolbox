@@ -1,0 +1,20 @@
+{
+	"name": "password-toolbox",
+	"version": "1.1.0",
+	"description": "A simple toolkit for generate, analyse and hash passwords with Node.js.",
+	"main": "password-toolbox.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/RyanJ93/password-toolbox.git"
+	},
+	"author": "Enrico Sola",
+	"license": "GPLv3",
+	"bugs": {
+		"url": "https://github.com/RyanJ93/password-toolbox/issues"
+	},
+	"homepage": "https://github.com/RyanJ93/password-toolbox#readme",
+	"dependencies": {}
+}
