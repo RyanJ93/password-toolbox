@@ -25,7 +25,7 @@ Random password:
 
 Human readable password generation (async with Promise support):
 
-`passwordToolBox.generator.generateHumanReadable(12).then(function(password){}).catch(function(error){});`
+`passwordToolBox.generator.setDictionaryPath('dictionary.txt').generateHumanReadable(12).then(function(password){}).catch(function(error){});`
 
 Note that in order to generate human readable passwords you need a dictionary, words in the dictionary must be separated by a break line (\n).
 If you are looking for an English word list, give a look [here](https://github.com/dwyl/english-words).
