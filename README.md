@@ -49,3 +49,4 @@ While if you used the second method you can do this:
 
 `passwordToolBox.hash.compareHash(password, hash);`
 
+Are you looking for the PHP version? Give a look [here](https://github.com/RyanJ93/php-password-toolbox).

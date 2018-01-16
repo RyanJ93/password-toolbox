@@ -21,19 +21,26 @@ var passwordToolBox = {
 		/**
 		* @var Boolean ci If set to "true", the passwords will be analyzed in case-insensitive way, otherwise not.
 		*/
-		ci: false,
+		ci: true,
 		
 		/**
 		* Sets the path to the dictionary file, this method is chainable.
 		*
 		* @param String path A string containing the path to the dictionary.
+		*
+		* @throws exception If an invalid dictionary path is provided. 
 		*/
 		setDictionaryPath: function(path){
-			if ( typeof(path) !== 'string' || path === '' ){
+			if ( typeof(path) !== 'string' ){
 				throw 'Invalid path.';
 			}
-			this.dictionary = path;
-			this.wordlist = this.cache === false ? null : '';
+			if ( path === '' ){
+				path = null;
+			}
+			if ( this.dictionary !== path ){
+				this.wordlist = this.cache === false ? null : '';
+				this.dictionary = path;
+			}
 			return this;
 		},
 		
@@ -67,7 +74,7 @@ var passwordToolBox = {
 		* @return Boolean If the dictionary cache is enabled will be returned "true", otherwise "false".
 		*/
 		getDictionaryCache: function(){
-			return this.cache === true ? true : false;
+			return this.cache === false ? false : true;
 		},
 		
 		/**
@@ -84,7 +91,7 @@ var passwordToolBox = {
 		* @param Boolean value If set to "true" the passwords will be analyzed in case-insensitive way, otherwise not.
 		*/
 		setCaseInsensitive: function(value){
-			this.ci = value === true ? true : false;
+			this.ci = value === false ? false : true;
 			return this;
 		},
 		
@@ -93,7 +100,7 @@ var passwordToolBox = {
 		*
 		* @return boolean If the passwords will be analyzed in case-insensitive way will be returned "true", otherwise "false".
 		*/
-		setCaseInsensitive: function(){
+		getCaseInsensitive: function(){
 			return this.ci === true ? true : false;
 		},
 		
@@ -123,13 +130,13 @@ var passwordToolBox = {
 			analysis.length = password.length;
 			analysis.numbers = password.match(/[0-9]/g);
 			analysis.numbers = analysis.numbers === null ? 0 : analysis.numbers.length;
-			analysis.uppercaseLetters = password.match(/[a-z]/g);
+			analysis.uppercaseLetters = password.match(/[A-Z]/g);
 			analysis.uppercaseLetters = analysis.uppercaseLetters === null ? 0 : analysis.uppercaseLetters.length;
-			analysis.lowercaseLetters = password.match(/[A-Z]/g);
+			analysis.lowercaseLetters = password.match(/[a-z]/g);
 			analysis.lowercaseLetters = analysis.lowercaseLetters === null ? 0 : analysis.lowercaseLetters.length;
 			analysis.specialChars = password.match(/[^A-Za-z0-9]/g);
 			analysis.specialChars = analysis.specialChars === null ? 0 : analysis.specialChars.length;
-			if ( this.ci === true ){
+			if ( this.ci !== false ){
 				password = password.toLowerCase();
 			}
 			analysis.score = password.length < 15 ? - ( Math.floor( ( ( 15 - password.length ) * 100 ) / 15 ) ) : 0;
@@ -164,6 +171,9 @@ var passwordToolBox = {
 					if ( typeof(keywords[i]) !== 'string' || keywords[i] === '' ){
 						continue;
 					}
+					if ( this.ci !== false ){
+						keywords[i] = keywords[i].toLowerCase();
+					}
 					let buffer = password.split(keywords[i]).length - 1;
 					analysis.keywords[keywords[i]] = buffer;
 					if ( buffer !== 0 ){
@@ -183,17 +193,15 @@ var passwordToolBox = {
 		*
 		* @param String password The password to analyze.
 		* @param Array info A sequential array of strings containing some additional information which shall be looked into the given password (like first name, surname, e-mail address and so on).
-		*
-		* @return Integer An integer number greater or equal than zero and lower or equal than 100 representing the password strength as percentage.
 		*/
 		completeAnalysis: function(password, keywords){
 			return new Promise(function(resolve, reject){
 				let analysis = passwordToolBox.analyzer.analyze(password, keywords);
-				if ( passwordToolBox.analyzer.ci === true ){
-					password = password.toLowerCase();
-				}
 				if ( typeof(passwordToolBox.analyzer.dictionary) !== 'string' || passwordToolBox.analyzer.dictionary === '' ){
 					return resolve(analysis);
+				}
+				if ( passwordToolBox.analyzer.ci !== false ){
+					password = password.toLowerCase();
 				}
 				if ( passwordToolBox.analyzer.cache === true && typeof(passwordToolBox.analyzer.wordlist) === 'string' ){
 					if ( passwordToolBox.analyzer.wordlist.indexOf(password + '\n') >= 0 ){
@@ -241,6 +249,8 @@ var passwordToolBox = {
 					}).on('close', function(){
 						analysis.score = analysis.score > 100 ? 100 : ( analysis.score < 0 ? 0 : analysis.score );
 						resolve(analysis);
+					}).on('error', function(){
+						return reject();
 					});
 				}catch(ex){
 					console.log(ex);
@@ -270,13 +280,20 @@ var passwordToolBox = {
 		* Sets the path to the dictionary file, this method is chainable.
 		*
 		* @param String path A string containing the path to the dictionary.
+		*
+		* @throws exception If an invalid dictionary path is provided. 
 		*/
 		setDictionaryPath: function(path){
-			if ( typeof(path) !== 'string' || path === '' ){
+			if ( typeof(path) !== 'string' ){
 				throw 'Invalid path.';
 			}
-			this.dictionary = path;
-			this.wordlist = this.cache === false ? null : '';
+			if ( path === '' ){
+				path = null;
+			}
+			if ( this.dictionary !== path ){
+				this.wordlist = this.cache === false ? null : '';
+				this.dictionary = path;
+			}
 			return this;
 		},
 		
@@ -360,9 +377,7 @@ var passwordToolBox = {
 					if ( numLength > length ){
 						length = numLength;
 					}
-					for ( let i = 0 ; i < numLength ; i++ ){
-						number += passwordToolBox.hash.generateNumber(0, 9).toString();
-					}
+					number = passwordToolBox.hash.generateRandomToken(numLength, '0123456789');
 					if ( numLength === length ){
 						return resolve(number);
 					}
@@ -378,7 +393,7 @@ var passwordToolBox = {
 					}
 					dictionary = dictionary.substr(0, Number.MAX_SAFE_INTEGER);
 					while ( password === '' ){
-						let portion = passwordToolBox.hash.generateNumber(0, dictionary.length - chunkSize);
+						let portion = passwordToolBox.hash.generateRandomNumber(0, dictionary.length - chunkSize);
 						portion = dictionary.substr(portion, chunkSize);
 						if ( portion.charAt(portion.length - 1) !== '\n' ){
 							portion = portion.substr(0, portion.lastIndexOf('\n'));
@@ -388,14 +403,14 @@ var passwordToolBox = {
 						}
 						portion = portion.split('\n');
 						while ( password === '' ){
-							let buffer = portion[passwordToolBox.hash.generateNumber(0, portion.length)];
+							let buffer = portion[passwordToolBox.hash.generateRandomNumber(0, portion.length)];
 							if ( buffer.length === length ){
 								password = buffer;
 								break;
 							}
 						}
 					}
-					return resolve(passwordToolBox.hash.generateNumber(0, 1) === 1 ? password + number : number + password);
+					return resolve(passwordToolBox.hash.generateRandomNumber(0, 1) === 1 ? password + number : number + password);
 				}
 				try{
 					dictionary = filesystem.readFileSync(__dirname + '/' + path).toString();
@@ -407,7 +422,7 @@ var passwordToolBox = {
 						passwordToolBox.generator.wordlist = dictionary;
 					}
 					while ( password === '' ){
-						let portion = passwordToolBox.hash.generateNumber(0, dictionary.length - chunkSize);
+						let portion = passwordToolBox.hash.generateRandomNumber(0, dictionary.length - chunkSize);
 						portion = dictionary.substr(portion, chunkSize);
 						if ( portion.charAt(portion.length - 1) !== '\n' ){
 							portion = portion.substr(0, portion.lastIndexOf('\n'));
@@ -417,14 +432,14 @@ var passwordToolBox = {
 						}
 						portion = portion.split('\n');
 						while ( password === '' ){
-							let buffer = portion[passwordToolBox.hash.generateNumber(0, portion.length)];
+							let buffer = portion[passwordToolBox.hash.generateRandomNumber(0, portion.length)];
 							if ( buffer.length === length ){
 								password = buffer;
 								break;
 							}
 						}
 					}
-					resolve(passwordToolBox.hash.generateNumber(0, 1) === 1 ? password + number : number + password);
+					resolve(passwordToolBox.hash.generateRandomNumber(0, 1) === 1 ? password + number : number + password);
 				}catch(ex){
 					console.log(ex);
 					return reject();
@@ -465,8 +480,11 @@ var passwordToolBox = {
 		* @param Number max The maximum number that can be generated.
 		*
 		* @return Number The generated number.
+		*
+		* @throws exception If the difference between minimum and maximum value is greater than the supported limit.
+		* @throws exception If the maximum value provided is greater than the supported one.
 		*/
-		generateNumber: function(min, max){
+		generateRandomNumber: function(min, max){
 			let distance = max - min;
 			if ( min >= max ){
 				max = min + 1;
@@ -509,10 +527,13 @@ var passwordToolBox = {
 		* @param String algorithm A string cotnaining the algorithm name, is not set, "sha512" will be used.
 		*
 		* @return String The hashed password.
+		*
+		* @throws exception If the given password is invalid.
+		* @throws exception If the given algorithm name is not supported.
 		*/
 		createSimpleHash: function(password, algorithm){
 			if ( typeof(password) !== 'string' || password === '' ){
-				return '';
+				throw 'Invalid password.';
 			}
 			if ( typeof(algorithm) !== 'string' || algorithm === '' ){
 				algorithm = 'sha512';
@@ -529,13 +550,16 @@ var passwordToolBox = {
 		* Creates a more sophisticated hash using the given password.
 		*
 		* @param String password A string containing the password.
-		* @param Object options An object containing the additional option for the algorithm.
+		* @param Object options An object containing the additional options for the algorithm.
 		*
 		* @return Object An object containing the hashed password and the respective parameters.
+		*
+		* @throws exception If the given password is invalid.
+		* @throws exception If the given algorithm name is not supported.
 		*/
 		createHash: function(password, options){
 			if ( typeof(password) !== 'string' || password === '' ){
-				return '';
+				throw 'Invalid password.';
 			}
 			if ( typeof(options) !== 'object' || options === null ){
 				options = {};
@@ -546,7 +570,7 @@ var passwordToolBox = {
 			if ( min > max ){
 				max = min + 1;
 			}
-			let loop = typeof(options.randomLoop) !== 'undefined' && options.randomLoop === false ? 1 : this.generateNumber(min, max);
+			let loop = typeof(options.randomLoop) !== 'undefined' && options.randomLoop === false ? 1 : this.generateRandomNumber(min, max);
 			let value = 32;
 			if ( typeof(options.saltLength) !== 'undefined' && isNaN(options.saltLength) === false ){
 				value = Math.floor(options.saltLength);
@@ -560,8 +584,13 @@ var passwordToolBox = {
 			}
 			let pepper = typeof(options.usePepper) !== 'undefined' && options.usePepper === false ? '' : this.generateRandomToken(value);
 			password = salt + password + pepper;
-			for ( let i = 0 ; i < loop ; i++ ){
-				password = crypto.createHash(algorithm).update(password).digest('hex');
+			try{
+				for ( let i = 0 ; i < loop ; i++ ){
+					password = crypto.createHash(algorithm).update(password).digest('hex');
+				}
+			}catch(ex){
+				console.log(ex);
+				throw 'Invalid algorithm';
 			}
 			return {
 				salt: salt,
@@ -576,10 +605,12 @@ var passwordToolBox = {
 		* Checks if a given password corresponds with the given hash.
 		*
 		* @param String password A string containing the password.
-		* @param Object options A string containing the hash to compare.
+		* @param String hash The hashed password that shall be compared.
 		* @param String algorithm A string containing the name of the algorithm that has been used to hash the original password, if not set "sha512" will be used.
 		*
 		* @return Boolean If the given password corresponds will be returned "true", otherwise "false".
+		*
+		* @throws exception If the given algorithm name is not supported.
 		*/
 		compareSimpleHash: function(password, hash, algorithm){
 			if ( typeof(password) !== 'string' || password === '' ){
@@ -588,7 +619,11 @@ var passwordToolBox = {
 			if ( typeof(hash) !== 'string' || hash === '' ){
 				return false;
 			}
-			return crypto.timingSafeEqual(new Buffer(this.createSimpleHash(password, algorithm)), new Buffer(hash)) === true ? true : false;
+			try{
+				return crypto.timingSafeEqual(new Buffer(this.createSimpleHash(password, algorithm)), new Buffer(hash)) === true ? true : false;
+			}catch(ex){
+				throw 'Invalid algorithm';
+			}
 		},
 		
 		/**
@@ -598,6 +633,8 @@ var passwordToolBox = {
 		* @param Object hash An object containing the password hash and the respective parameters.
 		*
 		* @return Boolean If the given password corresponds will be returned "true", otherwise "false".
+		*
+		* @throws exception If the given algorithm name is not supported.
 		*/
 		compareHash: function(password, hash){
 			if ( typeof(password) !== 'string' || password === '' ){
@@ -611,10 +648,15 @@ var passwordToolBox = {
 			let salt = typeof(hash.salt) !== 'string' ? '' : hash.salt;
 			let pepper = typeof(hash.pepper) !== 'string' ? '' : hash.pepper;
 			password = salt + password + pepper;
-			for ( let i = 0 ; i < loop ; i++ ){
-				password = crypto.createHash(algorithm).update(password).digest('hex');
+			try{
+				for ( let i = 0 ; i < loop ; i++ ){
+					password = crypto.createHash(algorithm).update(password).digest('hex');
+				}
+				return crypto.timingSafeEqual(new Buffer(password), new Buffer(hash.password)) === true ? true : false;
+			}catch(ex){
+				console.log(ex);
+				throw 'Invalid algorithm';
 			}
-			return crypto.timingSafeEqual(new Buffer(password), new Buffer(hash.password)) === true ? true : false;
 		}
 	}
 };
