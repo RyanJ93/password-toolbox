@@ -98,10 +98,39 @@ var passwordToolBox = {
 		/**
 		* Returns if the passwords shall be analyzed in case-insensitive way or not.
 		*
-		* @return boolean If the passwords will be analyzed in case-insensitive way will be returned "true", otherwise "false".
+		* @return Boolean If the passwords will be analyzed in case-insensitive way will be returned "true", otherwise "false".
 		*/
 		getCaseInsensitive: function(){
 			return this.ci === true ? true : false;
+		},
+		
+		/**
+		* Loads the content of the dictionary that has been set.
+		*
+		* @param Boolean asynchronous If set to "false" the operation will be done in synchronous way, otherwise in asynchronous way with promise support.
+		*
+		* @throws exception If an error occurs while reading dictionary contents.
+		*/
+		loadDictionaryCache: function(asynchronous){
+			if ( asynchronous !== false ){
+				return new Promise(function(resolve, reject){
+					resolve(passwordToolBox.analyzer.loadDictionaryCache(false));
+				});
+			}
+			if ( this.cache === false || this.dictionary === '' || typeof(this.dictionary) !== 'string' ){
+				return false;
+			}
+			try{
+				let content = filesystem.readFileSync(__dirname + '/' + this.dictionary).toString();
+				if ( content === '' ){
+					return false;
+				}
+				this.wordlist = content;
+				return true;
+			}catch(ex){
+				console.log(ex);
+				throw 'Unable to load the dictionary.';
+			}
 		},
 		
 		/**
@@ -204,8 +233,11 @@ var passwordToolBox = {
 					password = password.toLowerCase();
 				}
 				if ( passwordToolBox.analyzer.cache === true && typeof(passwordToolBox.analyzer.wordlist) === 'string' ){
-					if ( passwordToolBox.analyzer.wordlist.indexOf(password + '\n') >= 0 ){
+					if ( passwordToolBox.analyzer.wordlist.indexOf('\n') < 0 && passwordToolBox.analyzer.wordlist === password ){
 						analysis.score -= analysis.score > 50 ? 25 : 10;
+					}else if ( passwordToolBox.analyzer.wordlist.indexOf(password + '\n') >= 0 || passwordToolBox.analyzer.wordlist.indexOf('\n' + password) >= 0 ){
+							analysis.score -= analysis.score > 50 ? 25 : 10;
+						}
 					}
 					analysis.score = analysis.score > 100 ? 100 : ( analysis.score < 0 ? 0 : analysis.score );
 					return resolve(analysis);
@@ -216,7 +248,9 @@ var passwordToolBox = {
 							return resolve(analysis);
 						}
 						passwordToolBox.analyzer.wordlist = data;
-						if ( data.indexOf(password + '\n') >= 0 ){
+						if ( data.indexOf('\n') < 0 && data === password ){
+							analysis.score -= analysis.score > 50 ? 25 : 10;
+						}else if ( data.indexOf(password + '\n') >= 0 || data.indexOf('\n' + password) >= 0 ){
 							analysis.score -= analysis.score > 50 ? 25 : 10;
 						}
 						analysis.score = analysis.score > 100 ? 100 : ( analysis.score < 0 ? 0 : analysis.score );
@@ -239,6 +273,7 @@ var passwordToolBox = {
 							chunk = buffer + chunk;
 							buffer = '';
 						}
+						chunk = chunk + '\n';
 						if ( chunk.indexOf(password + '\n') >= 0 ){
 							analysis.score -= analysis.score > 50 ? 25 : 10;
 							stream.destroy();
@@ -339,6 +374,35 @@ var passwordToolBox = {
 		},
 		
 		/**
+		* Loads the content of the dictionary that has been set.
+		*
+		* @param Boolean asynchronous If set to "false" the operation will be done in synchronous way, otherwise in asynchronous way with promise support.
+		*
+		* @throws exception If an error occurs while reading dictionary contents.
+		*/
+		loadDictionaryCache: function(asynchronous){
+			if ( asynchronous !== false ){
+				return new Promise(function(resolve, reject){
+					resolve(passwordToolBox.generator.loadDictionaryCache(false));
+				});
+			}
+			if ( this.cache === false || this.dictionary === '' || typeof(this.dictionary) !== 'string' ){
+				return false;
+			}
+			try{
+				let content = filesystem.readFileSync(__dirname + '/' + this.dictionary).toString();
+				if ( content === '' ){
+					return false;
+				}
+				this.wordlist = content.substr(0, Number.MAX_SAFE_INTEGER);
+				return true;
+			}catch(ex){
+				console.log(ex);
+				throw 'Unable to load the dictionary.';
+			}
+		},
+		
+		/**
 		* Generate a random password long as much as specified.
 		*
 		* @param Integer length An integer number greater than zero representing the password length.
@@ -387,14 +451,13 @@ var passwordToolBox = {
 				let password = '';
 				chunkSize = chunkSize <= 1 || isNaN(chunkSize) === true ? 4096 : ( chunkSize > Number.MAX_SAFE_INTEGER ? Number.MAX_SAFE_INTEGER : chunkSize );
 				if ( passwordToolBox.generator.cache === true && typeof(passwordToolBox.generator.wordlist) === 'string' ){
-					dictionary = passwordToolBox.generator.wordlist;
-					if ( dictionary === '' ){
+					if ( passwordToolBox.generator.wordlist === '' ){
 						return resolve('');
 					}
-					dictionary = dictionary.substr(0, Number.MAX_SAFE_INTEGER);
+					passwordToolBox.generator.wordlist = passwordToolBox.generator.wordlist.substr(0, Number.MAX_SAFE_INTEGER);
 					while ( password === '' ){
 						let portion = passwordToolBox.hash.generateRandomNumber(0, dictionary.length - chunkSize);
-						portion = dictionary.substr(portion, chunkSize);
+						portion = passwordToolBox.generator.wordlist.substr(portion, chunkSize);
 						if ( portion.charAt(portion.length - 1) !== '\n' ){
 							portion = portion.substr(0, portion.lastIndexOf('\n'));
 						}

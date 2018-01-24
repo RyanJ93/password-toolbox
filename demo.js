@@ -1,4 +1,4 @@
-const passwordToolBox = require('./password-toolbox');
+const passwordToolBox = require('password-toolbox');
 
 //Generating a password.
 var password = passwordToolBox.generator.generate(12);
