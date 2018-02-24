@@ -114,21 +114,24 @@ var passwordToolBox = {
 		loadDictionaryCache: function(asynchronous){
 			if ( asynchronous !== false ){
 				return new Promise(function(resolve, reject){
-					resolve(passwordToolBox.analyzer.loadDictionaryCache(false));
+					try{
+						resolve(passwordToolBox.analyzer.loadDictionaryCache(false));
+					}catch(ex){
+						reject(ex);
+					}
 				});
 			}
 			if ( this.cache === false || this.dictionary === '' || typeof(this.dictionary) !== 'string' ){
 				return false;
 			}
 			try{
-				let content = filesystem.readFileSync(__dirname + '/' + this.dictionary).toString();
+				let content = filesystem.readFileSync(this.dictionary).toString();
 				if ( content === '' ){
 					return false;
 				}
 				this.wordlist = content;
 				return true;
 			}catch(ex){
-				console.log(ex);
 				throw 'Unable to load the dictionary.';
 			}
 		},
@@ -222,6 +225,8 @@ var passwordToolBox = {
 		*
 		* @param String password The password to analyze.
 		* @param Array info A sequential array of strings containing some additional information which shall be looked into the given password (like first name, surname, e-mail address and so on).
+		*
+		* @throws exception If an error occurs while reading dictionary contents.
 		*/
 		completeAnalysis: function(password, keywords){
 			return new Promise(function(resolve, reject){
@@ -236,14 +241,13 @@ var passwordToolBox = {
 					if ( passwordToolBox.analyzer.wordlist.indexOf('\n') < 0 && passwordToolBox.analyzer.wordlist === password ){
 						analysis.score -= analysis.score > 50 ? 25 : 10;
 					}else if ( passwordToolBox.analyzer.wordlist.indexOf(password + '\n') >= 0 || passwordToolBox.analyzer.wordlist.indexOf('\n' + password) >= 0 ){
-							analysis.score -= analysis.score > 50 ? 25 : 10;
-						}
+						analysis.score -= analysis.score > 50 ? 25 : 10;
 					}
 					analysis.score = analysis.score > 100 ? 100 : ( analysis.score < 0 ? 0 : analysis.score );
 					return resolve(analysis);
 				}else if ( passwordToolBox.analyzer.cache === true && ( typeof(passwordToolBox.analyzer.wordlist) !== 'string' || passwordToolBox.analyzer.wordlist === '' ) ){
 					try{
-						let data = filesystem.readFileSync(__dirname + '/' + passwordToolBox.analyzer.dictionary).toString();
+						let data = filesystem.readFileSync(passwordToolBox.analyzer.dictionary).toString();
 						if ( data === '' ){
 							return resolve(analysis);
 						}
@@ -256,12 +260,11 @@ var passwordToolBox = {
 						analysis.score = analysis.score > 100 ? 100 : ( analysis.score < 0 ? 0 : analysis.score );
 						return resolve(analysis);
 					}catch(ex){
-						console.log(ex);
-						return reject();
+						return reject('Unable to load the dictionary.');
 					}
 				}
 				try{
-					let stream = filesystem.createReadStream(__dirname + '/' + passwordToolBox.analyzer.dictionary, 'utf8');
+					let stream = filesystem.createReadStream(passwordToolBox.analyzer.dictionary, 'utf8');
 					let buffer = '';
 					stream.on('data', function(chunk){
 						if ( chunk.charAt(chunk.length - 1) !== '\n' ){
@@ -285,11 +288,10 @@ var passwordToolBox = {
 						analysis.score = analysis.score > 100 ? 100 : ( analysis.score < 0 ? 0 : analysis.score );
 						resolve(analysis);
 					}).on('error', function(){
-						return reject();
+						return reject('Unable to load the dictionary.');
 					});
 				}catch(ex){
-					console.log(ex);
-					return reject();
+					return reject('Unable to load the dictionary.');
 				}
 			});
 		}
@@ -383,21 +385,24 @@ var passwordToolBox = {
 		loadDictionaryCache: function(asynchronous){
 			if ( asynchronous !== false ){
 				return new Promise(function(resolve, reject){
-					resolve(passwordToolBox.generator.loadDictionaryCache(false));
+					try{
+						resolve(passwordToolBox.generator.loadDictionaryCache(false));
+					}catch(ex){
+						reject(ex);
+					}
 				});
 			}
 			if ( this.cache === false || this.dictionary === '' || typeof(this.dictionary) !== 'string' ){
 				return false;
 			}
 			try{
-				let content = filesystem.readFileSync(__dirname + '/' + this.dictionary).toString();
+				let content = filesystem.readFileSync(this.dictionary).toString();
 				if ( content === '' ){
 					return false;
 				}
 				this.wordlist = content.substr(0, Number.MAX_SAFE_INTEGER);
 				return true;
 			}catch(ex){
-				console.log(ex);
 				throw 'Unable to load the dictionary.';
 			}
 		},
@@ -425,6 +430,8 @@ var passwordToolBox = {
 		* @param Integer chunkSize The size (in chars) of the portion that will be read from the dictionary while looking for a random word, by default is set to 4096.
 		*
 		* @return String A string containing the generated password.
+		*
+		* @throws exception If an error occurs while reading dictionary contents.
 		*/
 		generateHumanReadable: function(length, numLength, chunkSize){
 			return new Promise(function(resolve, reject){
@@ -476,7 +483,7 @@ var passwordToolBox = {
 					return resolve(passwordToolBox.hash.generateRandomNumber(0, 1) === 1 ? password + number : number + password);
 				}
 				try{
-					dictionary = filesystem.readFileSync(__dirname + '/' + path).toString();
+					dictionary = filesystem.readFileSync(path).toString();
 					if ( dictionary === '' ){
 						return resolve('');
 					}
@@ -504,8 +511,7 @@ var passwordToolBox = {
 					}
 					resolve(passwordToolBox.hash.generateRandomNumber(0, 1) === 1 ? password + number : number + password);
 				}catch(ex){
-					console.log(ex);
-					return reject();
+					return reject('Unable to load the dictionary.');
 				}
 			});
 		}
@@ -604,7 +610,6 @@ var passwordToolBox = {
 			try{
 				return crypto.createHash(algorithm).update(password).digest('hex');
 			}catch(ex){
-				console.log(ex);
 				throw 'Invalid algorithm';
 			}
 		},
@@ -652,7 +657,6 @@ var passwordToolBox = {
 					password = crypto.createHash(algorithm).update(password).digest('hex');
 				}
 			}catch(ex){
-				console.log(ex);
 				throw 'Invalid algorithm';
 			}
 			return {
@@ -717,7 +721,6 @@ var passwordToolBox = {
 				}
 				return crypto.timingSafeEqual(new Buffer(password), new Buffer(hash.password)) === true ? true : false;
 			}catch(ex){
-				console.log(ex);
 				throw 'Invalid algorithm';
 			}
 		}

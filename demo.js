@@ -5,7 +5,7 @@ var password = passwordToolBox.generator.generate(12);
 console.log('Random password: ' + password);
 
 //Generating a human readable password.
-passwordToolBox.generator.setDictionaryPath('dictionary.txt').generateHumanReadable(12, 2).then(function(psw){
+passwordToolBox.generator.setDictionaryPath(__dirname + '/dictionary.txt').generateHumanReadable(12, 2).then(function(psw){
 	console.log('Human readable password: ' + psw);
 }).catch(function(error){
 	console.log(error);
@@ -16,7 +16,7 @@ var analysis = passwordToolBox.analyzer.analyze(password);
 console.log(analysis);
 
 //Complete password analysis.
-passwordToolBox.analyzer.setDictionaryPath('rockyou.txt').completeAnalysis(password).then(function(analysis){
+passwordToolBox.analyzer.setDictionaryPath(__dirname + '/rockyou.txt').completeAnalysis(password).then(function(analysis){
 	console.log(analysis);
 }).catch(function(error){
 	console.log(error);
